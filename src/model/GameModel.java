@@ -25,7 +25,6 @@ public class GameModel {
     private ScoreStrategy scoreStrategy;
     private final List<GameListener> listeners;
 
-    // Level up every 10 lines
     private static final int LINES_PER_LEVEL = 10;
 
     public GameModel() {
@@ -36,46 +35,33 @@ public class GameModel {
         state = GameState.READY;
     }
 
-    // ── Observer Pattern: register/remove listeners ──────────────
-    public void addListener(GameListener listener) {
-        listeners.add(listener);
-    }
-
-    public void removeListener(GameListener listener) {
-        listeners.remove(listener);
-    }
+    public void addListener(GameListener listener) { listeners.add(listener); }
+    public void removeListener(GameListener listener) { listeners.remove(listener); }
 
     private void notifyScoreChanged() {
         for (GameListener l : listeners) l.onScoreChanged(score, linesCleared, level);
     }
-
     private void notifyGameOver() {
         for (GameListener l : listeners) l.onGameOver(score);
     }
-
     private void notifyPieceChanged() {
         for (GameListener l : listeners) l.onPieceChanged();
     }
-
     private void notifyBoardChanged() {
         for (GameListener l : listeners) l.onBoardChanged();
     }
-
     private void notifyLevelUp() {
         for (GameListener l : listeners) l.onLevelUp(level);
     }
-
-    // ── Strategy Pattern: swap scoring ───────────────────────────
-    public void setScoreStrategy(ScoreStrategy strategy) {
-        this.scoreStrategy = strategy;
+    private void notifyLinesCleared(List<Integer> rows, int count) {
+        for (GameListener l : listeners) l.onLinesCleared(rows, count);
     }
 
-    // ── Game lifecycle ───────────────────────────────────────────
+    public void setScoreStrategy(ScoreStrategy strategy) { this.scoreStrategy = strategy; }
+
     public void startGame() {
         board.clear();
-        score = 0;
-        linesCleared = 0;
-        level = 0;
+        score = 0; linesCleared = 0; level = 0;
         state = GameState.PLAYING;
         spawnPiece();
         notifyScoreChanged();
@@ -83,15 +69,11 @@ public class GameModel {
     }
 
     public void togglePause() {
-        if (state == GameState.PLAYING) {
-            state = GameState.PAUSED;
-        } else if (state == GameState.PAUSED) {
-            state = GameState.PLAYING;
-        }
+        if (state == GameState.PLAYING) state = GameState.PAUSED;
+        else if (state == GameState.PAUSED) state = GameState.PLAYING;
         notifyBoardChanged();
     }
 
-    // ── Piece spawning ───────────────────────────────────────────
     private void spawnPiece() {
         if (nextPiece == null) {
             currentPiece = factory.createPiece();
@@ -100,8 +82,6 @@ public class GameModel {
             currentPiece = nextPiece;
             nextPiece = factory.createPiece();
         }
-
-        // Check if spawn position is valid — if not, game over
         if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
             state = GameState.GAME_OVER;
             notifyGameOver();
@@ -110,31 +90,25 @@ public class GameModel {
         notifyPieceChanged();
     }
 
-    // ── Movement ─────────────────────────────────────────────────
     public void moveLeft() {
         if (state != GameState.PLAYING) return;
         currentPiece.moveLeft();
-        if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
-            currentPiece.moveRight(); // undo
-        }
+        if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) currentPiece.moveRight();
         notifyBoardChanged();
     }
 
     public void moveRight() {
         if (state != GameState.PLAYING) return;
         currentPiece.moveRight();
-        if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
-            currentPiece.moveLeft(); // undo
-        }
+        if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) currentPiece.moveLeft();
         notifyBoardChanged();
     }
 
-    /** Move piece down by one. Returns true if piece was locked. */
     public boolean moveDown() {
         if (state != GameState.PLAYING) return false;
         currentPiece.moveDown();
         if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
-            currentPiece.moveUp(); // undo
+            currentPiece.moveUp();
             lockAndAdvance();
             return true;
         }
@@ -142,7 +116,6 @@ public class GameModel {
         return false;
     }
 
-    /** Soft drop — move down and add score */
     public void softDrop() {
         if (state != GameState.PLAYING) return;
         if (!moveDown()) {
@@ -151,7 +124,6 @@ public class GameModel {
         }
     }
 
-    /** Hard drop — instantly drop to bottom */
     public void hardDrop() {
         if (state != GameState.PLAYING) return;
         int cellsDropped = 0;
@@ -168,29 +140,30 @@ public class GameModel {
         lockAndAdvance();
     }
 
-    /** Rotate piece clockwise with wall kick */
     public void rotate() {
         if (state != GameState.PLAYING) return;
         currentPiece.rotate();
         if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
-            // Wall kick: try shifting left, then right
             currentPiece.setX(currentPiece.getX() - 1);
             if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
                 currentPiece.setX(currentPiece.getX() + 2);
                 if (!board.isValidPosition(currentPiece.getAbsoluteBlocks())) {
-                    currentPiece.setX(currentPiece.getX() - 1); // restore
-                    currentPiece.rotateBack(); // undo rotation
+                    currentPiece.setX(currentPiece.getX() - 1);
+                    currentPiece.rotateBack();
                 }
             }
         }
         notifyBoardChanged();
     }
 
-    // ── Lock piece and handle line clears ────────────────────────
     private void lockAndAdvance() {
         board.lockPiece(currentPiece);
         int cleared = board.clearLines();
         if (cleared > 0) {
+            // Notify with row info BEFORE updating score/state
+            List<Integer> clearedRows = board.getLastClearedRows();
+            notifyLinesCleared(clearedRows, cleared);
+
             linesCleared += cleared;
             score += scoreStrategy.calculateScore(cleared, level);
             int newLevel = linesCleared / LINES_PER_LEVEL;
@@ -204,7 +177,6 @@ public class GameModel {
         spawnPiece();
     }
 
-    /** Get the ghost piece position (preview of where piece will land) */
     public int getGhostY() {
         if (currentPiece == null) return 0;
         int ghostY = currentPiece.getY();
@@ -216,21 +188,14 @@ public class GameModel {
         return ghostY;
     }
 
-    /** Get drop speed in milliseconds based on level */
     public int getDropInterval() {
-        // Speed curve: starts at 800ms, decreases with level
-        int interval = Math.max(100, 800 - (level * 60));
-        return interval;
+        return Math.max(100, 800 - (level * 60));
     }
 
-    // ── Tick (called by game timer) ──────────────────────────────
     public void tick() {
-        if (state == GameState.PLAYING) {
-            moveDown();
-        }
+        if (state == GameState.PLAYING) moveDown();
     }
 
-    // ── Getters ──────────────────────────────────────────────────
     public Board getBoard()             { return board; }
     public Tetromino getCurrentPiece()  { return currentPiece; }
     public Tetromino getNextPiece()     { return nextPiece; }

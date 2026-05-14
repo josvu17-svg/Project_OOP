@@ -15,6 +15,9 @@ public class Board {
 
     private Color[][] grid;
 
+    // Stores the VISIBLE row indices cleared in the last clearLines() call
+    private List<Integer> lastClearedRows = new ArrayList<>();
+
     public Board() {
         grid = new Color[ROWS + HIDDEN_ROWS][COLS];
     }
@@ -44,13 +47,14 @@ public class Board {
     /**
      * Clear completed lines and return number cleared.
      * FIX: Rebuild grid by collecting non-full rows, avoiding index-shift bug.
+     * Also records which VISIBLE rows were cleared for animation.
      */
     public int clearLines() {
         int totalRows = ROWS + HIDDEN_ROWS;
         List<Color[]> remaining = new ArrayList<>();
+        lastClearedRows.clear();
         int cleared = 0;
 
-        // Scan from bottom to top, keep non-full rows
         for (int row = totalRows - 1; row >= 0; row--) {
             boolean full = true;
             for (int col = 0; col < COLS; col++) {
@@ -58,6 +62,9 @@ public class Board {
             }
             if (full) {
                 cleared++;
+                // Convert to visible row index
+                int visibleRow = row - HIDDEN_ROWS;
+                if (visibleRow >= 0) lastClearedRows.add(visibleRow);
             } else {
                 remaining.add(grid[row].clone());
             }
@@ -65,13 +72,17 @@ public class Board {
 
         if (cleared == 0) return 0;
 
-        // Rebuild grid: fill from bottom with kept rows, pad top with empty rows
         for (int row = totalRows - 1; row >= 0; row--) {
             int remainIdx = totalRows - 1 - row;
             grid[row] = (remainIdx < remaining.size()) ? remaining.get(remainIdx) : new Color[COLS];
         }
 
         return cleared;
+    }
+
+    /** Get the visible row indices cleared in the last clearLines() call */
+    public List<Integer> getLastClearedRows() {
+        return new ArrayList<>(lastClearedRows);
     }
 
     public boolean isTopReached() {
