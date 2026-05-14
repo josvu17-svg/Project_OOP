@@ -64,6 +64,7 @@ public class GameController extends KeyAdapter implements GameListener {
                     model.startGame();
                     gameTimer.setDelay(model.getDropInterval());
                     gameTimer.start();
+                    SoundManager.startBgm(); // chạy lại nhạc khi chơi mới
                 }
                 break;
         }
@@ -74,6 +75,7 @@ public class GameController extends KeyAdapter implements GameListener {
     @Override
     public void onGameOver(int finalScore) {
         gameTimer.stop();
+        SoundManager.stopBgm();      // tắt nhạc khi thua
         SoundManager.playGameOver();
         boardPanel.repaint();
         infoPanel.repaint();
