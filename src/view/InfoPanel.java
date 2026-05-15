@@ -13,20 +13,22 @@ import java.awt.event.MouseEvent;
 
 /**
  * Side panel showing game info: next piece, score, level, lines, controls.
- * Also contains SFX and BGM toggle buttons.
+ * Has a Settings button that opens SettingsDialog.
  */
 public class InfoPanel extends JPanel {
-    private static final int PREVIEW_CELL = 22;
+    private static final int PREVIEW_CELL  = 22;
     private static final Color BG_COLOR    = new Color(30, 30, 30);
     private static final Color TEXT_COLOR  = new Color(220, 220, 220);
     private static final Color LABEL_COLOR = new Color(150, 150, 150);
     private static final Color ACCENT_COLOR = new Color(0, 200, 255);
 
     private final GameModel model;
+    private JFrame parentFrame;
+    private Runnable onRestart;
 
-    // Toggle button rects (for click detection)
-    private final Rectangle sfxBtnRect = new Rectangle();
-    private final Rectangle bgmBtnRect = new Rectangle();
+    // Settings button rect
+    private final Rectangle settingsBtnRect = new Rectangle();
+    private boolean settingsHover = false;
 
     public InfoPanel(GameModel model) {
         this.model = model;
@@ -36,15 +38,40 @@ public class InfoPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (sfxBtnRect.contains(e.getPoint())) {
-                    SoundManager.setSfxEnabled(!SoundManager.isSfxEnabled());
-                    repaint();
-                } else if (bgmBtnRect.contains(e.getPoint())) {
-                    SoundManager.setBgmEnabled(!SoundManager.isBgmEnabled());
-                    repaint();
+                if (settingsBtnRect.contains(e.getPoint())) {
+                    openSettings();
                 }
             }
+            @Override
+            public void mouseEntered(MouseEvent e) { checkHover(e); }
+            @Override
+            public void mouseMoved(MouseEvent e)   { checkHover(e); }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                settingsHover = false;
+                repaint();
+            }
         });
+
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) { checkHover(e); }
+        });
+    }
+
+    private void checkHover(MouseEvent e) {
+        boolean was = settingsHover;
+        settingsHover = settingsBtnRect.contains(e.getPoint());
+        if (was != settingsHover) repaint();
+    }
+
+    public void setParentFrame(JFrame frame) { this.parentFrame = frame; }
+    public void setOnRestart(Runnable r)     { this.onRestart = r; }
+
+    private void openSettings() {
+        if (parentFrame == null) return;
+        SettingsDialog dlg = new SettingsDialog(parentFrame, model, onRestart != null ? onRestart : () -> {});
+        dlg.setVisible(true);
     }
 
     @Override
@@ -73,14 +100,10 @@ public class InfoPanel extends JPanel {
         // ── LINES ──
         y = drawLabel(g2d, "LINES", y);
         y = drawValue(g2d, String.valueOf(model.getLinesCleared()), y);
-        y += 20;
+        y += 25;
 
-        // ── SOUND TOGGLES ──
-        y = drawLabel(g2d, "SOUND", y);
-        y += 8;
-        y = drawToggleButton(g2d, "🔊 SFX", SoundManager.isSfxEnabled(), y, sfxBtnRect);
-        y += 6;
-        y = drawToggleButton(g2d, "🎵 Music", SoundManager.isBgmEnabled(), y, bgmBtnRect);
+        // ── SETTINGS BUTTON ──
+        y = drawSettingsButton(g2d, y);
         y += 20;
 
         // ── CONTROLS ──
@@ -102,28 +125,26 @@ public class InfoPanel extends JPanel {
         }
     }
 
-    private int drawToggleButton(Graphics2D g, String label, boolean on, int y, Rectangle rect) {
-        int btnX = 12, btnW = 155, btnH = 28;
-        rect.setBounds(btnX, y, btnW, btnH);
+    private int drawSettingsButton(Graphics2D g, int y) {
+        int btnX = 12, btnW = 155, btnH = 36;
+        settingsBtnRect.setBounds(btnX, y, btnW, btnH);
 
-        // Button background
-        Color bg = on ? new Color(0, 160, 80) : new Color(80, 30, 30);
-        Color border = on ? new Color(0, 220, 100) : new Color(180, 50, 50);
+        // Background
+        Color bg = settingsHover ? new Color(0, 160, 200) : new Color(40, 60, 90);
+        Color border = settingsHover ? new Color(0, 220, 255) : new Color(0, 150, 200);
         g.setColor(bg);
-        g.fillRoundRect(btnX, y, btnW, btnH, 8, 8);
+        g.fillRoundRect(btnX, y, btnW, btnH, 10, 10);
         g.setColor(border);
-        g.drawRoundRect(btnX, y, btnW, btnH, 8, 8);
+        g.drawRoundRect(btnX, y, btnW, btnH, 10, 10);
 
-        // Label
-        g.setFont(new Font("SansSerif", Font.BOLD, 12));
+        // Gear icon + text
+        g.setFont(new Font("SansSerif", Font.BOLD, 14));
         g.setColor(Color.WHITE);
-        String status = on ? "ON" : "OFF";
-        g.drawString(label, btnX + 10, y + 18);
-
-        // Status badge
-        g.setColor(on ? new Color(0, 255, 120) : new Color(255, 80, 80));
+        String label = "⚙   Settings";
         FontMetrics fm = g.getFontMetrics();
-        g.drawString(status, btnX + btnW - fm.stringWidth(status) - 10, y + 18);
+        int tx = btnX + (btnW - fm.stringWidth(label)) / 2;
+        int ty = y + (btnH + fm.getAscent() - fm.getDescent()) / 2;
+        g.drawString(label, tx, ty);
 
         return y + btnH;
     }
@@ -150,30 +171,28 @@ public class InfoPanel extends JPanel {
         int[][] blocks = type.getBlocks(0);
         Color color = type.getColor();
 
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        int minX=Integer.MAX_VALUE, maxX=Integer.MIN_VALUE;
+        int minY=Integer.MAX_VALUE, maxY=Integer.MIN_VALUE;
         for (int[] b : blocks) {
-            minX = Math.min(minX, b[0]); maxX = Math.max(maxX, b[0]);
-            minY = Math.min(minY, b[1]); maxY = Math.max(maxY, b[1]);
+            minX=Math.min(minX,b[0]); maxX=Math.max(maxX,b[0]);
+            minY=Math.min(minY,b[1]); maxY=Math.max(maxY,b[1]);
         }
-        int pieceWidth  = (maxX - minX + 1) * PREVIEW_CELL;
-        int pieceHeight = (maxY - minY + 1) * PREVIEW_CELL;
-        int offsetX = (getWidth() - pieceWidth) / 2 - minX * PREVIEW_CELL;
-        int offsetY = startY;
+        int pieceWidth  = (maxX-minX+1)*PREVIEW_CELL;
+        int pieceHeight = (maxY-minY+1)*PREVIEW_CELL;
+        int offsetX = (getWidth()-pieceWidth)/2 - minX*PREVIEW_CELL;
 
-        g.setColor(new Color(45, 45, 45));
-        g.fillRoundRect(10, startY - 5, getWidth() - 20, pieceHeight + 15, 8, 8);
+        g.setColor(new Color(45,45,45));
+        g.fillRoundRect(10, startY-5, getWidth()-20, pieceHeight+15, 8, 8);
 
         for (int[] b : blocks) {
-            int px = offsetX + b[0] * PREVIEW_CELL;
-            int py = offsetY + (b[1] - minY) * PREVIEW_CELL;
+            int px = offsetX + b[0]*PREVIEW_CELL;
+            int py = startY  + (b[1]-minY)*PREVIEW_CELL;
             g.setColor(color);
-            g.fillRect(px + 1, py + 1, PREVIEW_CELL - 2, PREVIEW_CELL - 2);
+            g.fillRect(px+1, py+1, PREVIEW_CELL-2, PREVIEW_CELL-2);
             g.setColor(color.brighter());
-            g.drawLine(px+1, py+1, px+PREVIEW_CELL-2, py+1);
-            g.drawLine(px+1, py+1, px+1, py+PREVIEW_CELL-2);
+            g.drawLine(px+1,py+1,px+PREVIEW_CELL-2,py+1);
+            g.drawLine(px+1,py+1,px+1,py+PREVIEW_CELL-2);
         }
-
         return startY + pieceHeight + 15;
     }
 }

@@ -1,5 +1,6 @@
 import controller.GameController;
 import model.GameModel;
+import pattern.SoundManager;
 import view.BoardPanel;
 import view.InfoPanel;
 
@@ -8,15 +9,12 @@ import java.awt.*;
 
 /**
  * Tetris Game — Main Entry Point
- * 
+ *
  * Architecture: MVC (Model-View-Controller)
  * Design Patterns Used:
  *   1. Observer Pattern  — GameListener interface notifies views of changes
  *   2. Factory Pattern   — TetrominoFactory creates pieces using 7-bag randomizer
  *   3. Strategy Pattern  — ScoreStrategy allows swappable scoring algorithms
- *   4. MVC Pattern       — Separation of game logic, rendering, and input handling
- * 
- * @author Tetris Project - OOP Course
  */
 public class TetrisGame {
 
@@ -32,25 +30,29 @@ public class TetrisGame {
             // ── Controller ──
             GameController controller = new GameController(model, boardPanel, infoPanel);
 
-            // ── Frame Setup ──
+            // ── Frame ──
             JFrame frame = new JFrame("Tetris — OOP Project");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setResizable(false);
             frame.setLayout(new BorderLayout());
-
-            // Board on the left, info on the right
             frame.add(boardPanel, BorderLayout.CENTER);
             frame.add(infoPanel, BorderLayout.EAST);
-
-            // Keyboard input
             frame.addKeyListener(controller);
-
             frame.pack();
-            frame.setLocationRelativeTo(null); // center on screen
+            frame.setLocationRelativeTo(null);
             frame.setVisible(true);
-
-            // Request focus for keyboard events
             frame.requestFocusInWindow();
+
+            // ── Pass frame + restart callback to InfoPanel ──
+            infoPanel.setParentFrame(frame);
+            infoPanel.setOnRestart(() -> {
+                model.startGame();
+                // Re-focus so keyboard works after dialog closes
+                SwingUtilities.invokeLater(frame::requestFocusInWindow);
+            });
+
+            // ── Start BGM ──
+            SoundManager.startBgm();
         });
     }
 }
