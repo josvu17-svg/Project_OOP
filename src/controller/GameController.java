@@ -7,11 +7,14 @@ import pattern.SoundManager;
 import view.BoardPanel;
 
 import javax.swing.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.util.List;
 
-public class GameController extends KeyAdapter implements GameListener {
+/**
+ * Controller in MVC pattern.
+ * Keyboard input is now handled via KeyBindings in TetrisGame (WHEN_IN_FOCUSED_WINDOW)
+ * so it works regardless of which component has focus.
+ */
+public class GameController implements GameListener {
     private final GameModel model;
     private final BoardPanel boardPanel;
     private final JPanel infoPanel;
@@ -23,51 +26,23 @@ public class GameController extends KeyAdapter implements GameListener {
         this.infoPanel = infoPanel;
         model.addListener(this);
         setupTimer();
-        // Start BGM when game launches
-        SoundManager.startBgm();
     }
 
     private void setupTimer() {
         gameTimer = new Timer(model.getDropInterval(), e -> model.tick());
     }
 
-    @Override
-    public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-                model.moveLeft();
-                SoundManager.playMove();
-                break;
-            case KeyEvent.VK_RIGHT:
-                model.moveRight();
-                SoundManager.playMove();
-                break;
-            case KeyEvent.VK_DOWN:
-                model.softDrop();
-                break;
-            case KeyEvent.VK_UP:
-                model.rotate();
-                SoundManager.playRotate();
-                break;
-            case KeyEvent.VK_SPACE:
-                model.hardDrop();
-                SoundManager.playHardDrop();
-                break;
-            case KeyEvent.VK_P:
-                model.togglePause();
-                if (model.getState() == GameState.PAUSED) gameTimer.stop();
-                else if (model.getState() == GameState.PLAYING) gameTimer.start();
-                break;
-            case KeyEvent.VK_ENTER:
-                if (model.getState() == GameState.READY ||
-                    model.getState() == GameState.GAME_OVER) {
-                    model.startGame();
-                    gameTimer.setDelay(model.getDropInterval());
-                    gameTimer.start();
-                    SoundManager.startBgm(); // chạy lại nhạc khi chơi mới
-                }
-                break;
-        }
+    // ── Called by KeyBindings in TetrisGame ───────────────────
+    public void handlePauseToggle() {
+        model.togglePause();
+        if (model.getState() == GameState.PAUSED) gameTimer.stop();
+        else if (model.getState() == GameState.PLAYING) gameTimer.start();
+    }
+
+    public void handleStartGame() {
+        model.startGame();
+        gameTimer.setDelay(model.getDropInterval());
+        gameTimer.start();
     }
 
     @Override public void onScoreChanged(int score, int lines, int level) { infoPanel.repaint(); }
@@ -75,7 +50,7 @@ public class GameController extends KeyAdapter implements GameListener {
     @Override
     public void onGameOver(int finalScore) {
         gameTimer.stop();
-        SoundManager.stopBgm();      // tắt nhạc khi thua
+        SoundManager.stopBgm();
         SoundManager.playGameOver();
         boardPanel.repaint();
         infoPanel.repaint();
@@ -101,10 +76,10 @@ public class GameController extends KeyAdapter implements GameListener {
     public void onLinesCleared(List<Integer> clearedRows, int linesCount) {
         boardPanel.triggerLineClear(clearedRows, linesCount);
         switch (linesCount) {
-            case 1: SoundManager.playSingle();  break;
-            case 2: SoundManager.playDouble();  break;
-            case 3: SoundManager.playTriple();  break;
-            case 4: SoundManager.playTetris();  break;
+            case 1: SoundManager.playSingle(); break;
+            case 2: SoundManager.playDouble(); break;
+            case 3: SoundManager.playTriple(); break;
+            case 4: SoundManager.playTetris(); break;
         }
     }
 }

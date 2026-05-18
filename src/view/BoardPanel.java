@@ -37,6 +37,7 @@ public class BoardPanel extends JPanel {
         int height = Board.ROWS * CELL_SIZE + 1;
         setPreferredSize(new Dimension(width, height));
         setBackground(BG_COLOR);
+        setFocusable(false); // never steal focus from frame
 
         // Animation timer: 60fps
         animTimer = new Timer(16, e -> {
