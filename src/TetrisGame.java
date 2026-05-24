@@ -7,12 +7,7 @@ import view.InfoPanel;
 import view.MenuPanel;
 
 import javax.swing.*;
-import javax.swing.KeyStroke;
 import java.awt.*;
-<<<<<<< HEAD
-=======
-import java.awt.event.ActionEvent;
->>>>>>> 0b53345537e5a901027e11b7b838a1445412786b
 import java.awt.event.KeyEvent;
 
 /**
@@ -50,31 +45,7 @@ public class TetrisGame {
             frame = new JFrame("Tetris — OOP Edition");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setResizable(false);
-<<<<<<< HEAD
             frame.setContentPane(mainPanel);
-=======
-            frame.setLayout(new BorderLayout());
-            frame.add(boardPanel, BorderLayout.CENTER);
-            frame.add(infoPanel, BorderLayout.EAST);
-            // 25002500 Key Bindings (WHEN_IN_FOCUSED_WINDOW 2014 works regardless of focus) 25002500
-            JRootPane root = frame.getRootPane();
-            InputMap im = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-            ActionMap am = root.getActionMap();
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_LEFT,  0), "left");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_RIGHT, 0), "right");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_UP,    0), "rotate");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DOWN,  0), "softDrop");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SPACE, 0), "hardDrop");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_P,     0), "pause");
-            im.put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, 0), "start");
-            am.put("left",     new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { model.moveLeft();           boardPanel.repaint(); } });
-            am.put("right",    new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { model.moveRight();          boardPanel.repaint(); } });
-            am.put("rotate",   new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { model.rotate();             boardPanel.repaint(); } });
-            am.put("softDrop", new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { model.softDrop();           boardPanel.repaint(); } });
-            am.put("hardDrop", new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { model.hardDrop();           boardPanel.repaint(); } });
-            am.put("pause",    new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { controller.handlePauseToggle(); } });
-            am.put("start",    new javax.swing.AbstractAction() { public void actionPerformed(java.awt.event.ActionEvent e) { controller.handleStartGame();   } });
->>>>>>> 0b53345537e5a901027e11b7b838a1445412786b
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
