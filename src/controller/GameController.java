@@ -47,7 +47,7 @@ public class GameController implements GameListener {
     }
 
     /** Pause game before opening Settings, resume after */
-    public void openSettings(JFrame frame, Runnable onRestart) {
+    public void openSettings(JFrame frame, Runnable onRestart, Runnable onBackToMenu) {
         // Force pause if playing
         if (model.getState() == GameState.PLAYING) {
             model.togglePause();
@@ -63,7 +63,7 @@ public class GameController implements GameListener {
         });
         dlg.setOnBackToMenu(() -> {
             SoundManager.stopBgm();
-            TetrisGame.showMenu();
+            onBackToMenu.run();
         });
         dlg.setOnClose(() -> {
             // Resume game after settings closed

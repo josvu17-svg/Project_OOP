@@ -1,13 +1,12 @@
 package view;
 
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 import model.Board;
 import model.GameModel;
 import model.Tetromino;
 import model.TetrominoType;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
 
 /**
  * Side panel with gear icon at top-right.
@@ -69,10 +68,10 @@ public class InfoPanel extends JPanel {
         String gear = "⚙";
         g2.drawString(gear, gx+(gSize-fm.stringWidth(gear))/2, gy+gSize-(gSize-fm.getAscent())/2-2);
 
-        int y = 25;
+        int y = 50;
         y = drawLabel(g2, "NEXT", y);
         y = drawNextPiece(g2, y + 5);
-        y += 20;
+        y += 30;
         y = drawLabel(g2, "SCORE", y);
         y = drawValue(g2, String.valueOf(model.getScore()), y);
         y += 15;

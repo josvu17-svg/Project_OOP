@@ -57,7 +57,7 @@ public class TetrisGame {
             infoPanel.setOnSettings(() ->
                 controller.openSettings(frame, () -> {
                     menuPanel.refreshScores();
-                })
+                }, () -> showMenu())
             );
             infoPanel.setOnRestart(() -> {
                 model.startGame();
