@@ -1,58 +1,114 @@
 import controller.GameController;
 import model.GameModel;
+import model.GameState;
 import pattern.SoundManager;
 import view.BoardPanel;
 import view.InfoPanel;
+import view.MenuPanel;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyEvent;
 
 /**
- * Tetris Game — Main Entry Point
- *
- * Architecture: MVC (Model-View-Controller)
- * Design Patterns Used:
- *   1. Observer Pattern  — GameListener interface notifies views of changes
- *   2. Factory Pattern   — TetrominoFactory creates pieces using 7-bag randomizer
- *   3. Strategy Pattern  — ScoreStrategy allows swappable scoring algorithms
+ * Main entry point — CardLayout switches between Menu and Game.
  */
 public class TetrisGame {
 
+    private static JFrame        frame;
+    private static CardLayout    cardLayout;
+    private static JPanel        mainPanel;
+    private static GameModel     model;
+    private static GameController controller;
+    private static BoardPanel    boardPanel;
+    private static InfoPanel     infoPanel;
+    private static MenuPanel     menuPanel;
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // ── Model ──
-            GameModel model = new GameModel();
+            model      = new GameModel();
+            boardPanel = new BoardPanel(model);
+            infoPanel  = new InfoPanel(model);
+            controller = new GameController(model, boardPanel, infoPanel);
 
-            // ── Views ──
-            BoardPanel boardPanel = new BoardPanel(model);
-            InfoPanel infoPanel = new InfoPanel(model);
+            menuPanel = new MenuPanel(TetrisGame::startGame);
 
-            // ── Controller ──
-            GameController controller = new GameController(model, boardPanel, infoPanel);
+            JPanel gamePanel = new JPanel(new BorderLayout());
+            gamePanel.add(boardPanel, BorderLayout.CENTER);
+            gamePanel.add(infoPanel,  BorderLayout.EAST);
 
-            // ── Frame ──
-            JFrame frame = new JFrame("Tetris — OOP Project");
+            cardLayout = new CardLayout();
+            mainPanel  = new JPanel(cardLayout);
+            mainPanel.add(menuPanel,  "MENU");
+            mainPanel.add(gamePanel,  "GAME");
+
+            frame = new JFrame("Tetris — OOP Edition");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setResizable(false);
-            frame.setLayout(new BorderLayout());
-            frame.add(boardPanel, BorderLayout.CENTER);
-            frame.add(infoPanel, BorderLayout.EAST);
-            frame.addKeyListener(controller);
+            frame.setContentPane(mainPanel);
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
-            frame.requestFocusInWindow();
 
-            // ── Pass frame + restart callback to InfoPanel ──
+            controller.setParentFrame(frame);
+
+            // InfoPanel callbacks
             infoPanel.setParentFrame(frame);
+            infoPanel.setOnSettings(() ->
+                controller.openSettings(frame, () -> {
+                    menuPanel.refreshScores();
+                })
+            );
             infoPanel.setOnRestart(() -> {
                 model.startGame();
-                // Re-focus so keyboard works after dialog closes
-                SwingUtilities.invokeLater(frame::requestFocusInWindow);
+                controller.handleStartGame();
+                SoundManager.startBgm();
             });
 
-            // ── Start BGM ──
+            setupKeyBindings();
+            cardLayout.show(mainPanel, "MENU");
             SoundManager.startBgm();
+        });
+    }
+
+    public static void startGame() {
+        cardLayout.show(mainPanel, "GAME");
+        model.startGame();
+        controller.handleStartGame();
+        SwingUtilities.invokeLater(frame::requestFocusInWindow);
+    }
+
+    public static void showMenu() {
+        controller.stopTimer();
+        cardLayout.show(mainPanel, "MENU");
+        menuPanel.refreshScores();
+    }
+
+    private static void setupKeyBindings() {
+        InputMap  im = mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap am = mainPanel.getActionMap();
+
+        bind(im, am, KeyEvent.VK_LEFT,   "left",   () -> { if(inGame()) { model.moveLeft();  SoundManager.playMove(); }});
+        bind(im, am, KeyEvent.VK_RIGHT,  "right",  () -> { if(inGame()) { model.moveRight(); SoundManager.playMove(); }});
+        bind(im, am, KeyEvent.VK_DOWN,   "down",   () -> { if(inGame()) model.softDrop(); });
+        bind(im, am, KeyEvent.VK_UP,     "up",     () -> { if(inGame()) { model.rotate();    SoundManager.playRotate(); }});
+        bind(im, am, KeyEvent.VK_SPACE,  "space",  () -> { if(inGame()) { model.hardDrop();  SoundManager.playHardDrop(); }});
+        bind(im, am, KeyEvent.VK_P,      "pause",  () -> { if(inGame()) controller.handlePauseToggle(); });
+        bind(im, am, KeyEvent.VK_ENTER,  "enter",  () -> {
+            if (inGame() && (model.getState() == GameState.READY ||
+                             model.getState() == GameState.GAME_OVER)) {
+                startGame();
+            }
+        });
+        bind(im, am, KeyEvent.VK_ESCAPE, "escape", () -> { if(inGame()) showMenu(); });
+    }
+
+    private static boolean inGame() { return boardPanel.isShowing(); }
+
+    private static void bind(InputMap im, ActionMap am, int key, String name, Runnable action) {
+        im.put(KeyStroke.getKeyStroke(key, 0), name);
+        am.put(name, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) { action.run(); }
         });
     }
 }

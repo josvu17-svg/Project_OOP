@@ -5,34 +5,36 @@ import model.GameState;
 import pattern.GameListener;
 import pattern.SoundManager;
 import view.BoardPanel;
+import view.GameOverDialog;
 
 import javax.swing.*;
 import java.util.List;
 
 /**
- * Controller in MVC pattern.
- * Keyboard input is now handled via KeyBindings in TetrisGame (WHEN_IN_FOCUSED_WINDOW)
- * so it works regardless of which component has focus.
+ * Controller — game events, timer management.
  */
 public class GameController implements GameListener {
-    private final GameModel model;
+    private final GameModel  model;
     private final BoardPanel boardPanel;
-    private final JPanel infoPanel;
-    private Timer gameTimer;
+    private final JPanel     infoPanel;
+    private Timer   gameTimer;
+    private JFrame  parentFrame;
 
     public GameController(GameModel model, BoardPanel boardPanel, JPanel infoPanel) {
-        this.model = model;
+        this.model      = model;
         this.boardPanel = boardPanel;
-        this.infoPanel = infoPanel;
+        this.infoPanel  = infoPanel;
         model.addListener(this);
         setupTimer();
     }
+
+    public void setParentFrame(JFrame f) { parentFrame = f; }
 
     private void setupTimer() {
         gameTimer = new Timer(model.getDropInterval(), e -> model.tick());
     }
 
-    // ── Called by KeyBindings in TetrisGame ───────────────────
+    // ── Called by TetrisGame KeyBindings ──────────────────────
     public void handlePauseToggle() {
         model.togglePause();
         if (model.getState() == GameState.PAUSED) gameTimer.stop();
@@ -40,12 +42,48 @@ public class GameController implements GameListener {
     }
 
     public void handleStartGame() {
-        model.startGame();
         gameTimer.setDelay(model.getDropInterval());
         gameTimer.start();
     }
 
-    @Override public void onScoreChanged(int score, int lines, int level) { infoPanel.repaint(); }
+    /** Pause game before opening Settings, resume after */
+    public void openSettings(JFrame frame, Runnable onRestart) {
+        // Force pause if playing
+        if (model.getState() == GameState.PLAYING) {
+            model.togglePause();
+            gameTimer.stop();
+            boardPanel.repaint();
+        }
+
+        view.SettingsDialog dlg = new view.SettingsDialog(frame, model, () -> {
+            model.startGame();
+            handleStartGame();
+            SoundManager.startBgm();
+            onRestart.run();
+        });
+        dlg.setOnBackToMenu(() -> {
+            SoundManager.stopBgm();
+            TetrisGame.showMenu();
+        });
+        dlg.setOnClose(() -> {
+            // Resume game after settings closed
+            if (model.getState() == GameState.PAUSED) {
+                model.togglePause();
+                gameTimer.start();
+                boardPanel.repaint();
+            }
+            SwingUtilities.invokeLater(frame::requestFocusInWindow);
+        });
+        dlg.setVisible(true);
+    }
+
+    public void stopTimer()  { gameTimer.stop(); }
+    public void startTimer() { gameTimer.start(); }
+    public boolean isTimerRunning() { return gameTimer.isRunning(); }
+
+    // ── GameListener callbacks ────────────────────────────────
+    @Override
+    public void onScoreChanged(int score, int lines, int level) { infoPanel.repaint(); }
 
     @Override
     public void onGameOver(int finalScore) {
@@ -54,6 +92,12 @@ public class GameController implements GameListener {
         SoundManager.playGameOver();
         boardPanel.repaint();
         infoPanel.repaint();
+
+        // Show custom Game Over dialog
+        SwingUtilities.invokeLater(() ->
+            GameOverDialog.show(parentFrame, finalScore,
+                model.getLevel(), model.getLinesCleared())
+        );
     }
 
     @Override
