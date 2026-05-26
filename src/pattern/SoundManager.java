@@ -29,12 +29,34 @@ public class SoundManager {
     private static final List<String[]> songList = new ArrayList<>();
 
     static {
-        // Built-in songs (bundled in JAR)
-        songList.add(new String[]{"Độ Tộc 2 - Đô Mixi",        "dotoc2.wav",    "false"});
-        songList.add(new String[]{"Tình Cha - Killerqueen",     "tinhcha.wav",   "false"});
-        songList.add(new String[]{"Chiều Hôm Ấy - Jaykii",     "chieuhomay.wav","false"});
-        // External songs from ./bgm/ folder are loaded at runtime
+        // Built-in songs — try JAR resource first, then audio/ folder next to JAR
+        songList.add(new String[]{"Độ Tộc 2 - Đô Mixi",    resolveAudio("dotoc2.wav"),    "false"});
+        songList.add(new String[]{"Tình Cha - Killerqueen", resolveAudio("tinhcha.wav"),   "false"});
+        songList.add(new String[]{"Chiều Hôm Ấy - Jaykii",  resolveAudio("chieuhomay.wav"),"false"});
+        // External songs from ./bgm/ folder
         loadExternalSongs();
+    }
+
+    /**
+     * Returns the resource name if bundled in JAR,
+     * or the absolute path if found in audio/ folder next to JAR.
+     */
+    private static String resolveAudio(String filename) {
+        // Check if bundled in JAR
+        if (SoundManager.class.getResourceAsStream("/" + filename) != null) {
+            return filename; // use as classpath resource
+        }
+        // Check audio/ folder next to JAR
+        try {
+            File jarDir = new File(SoundManager.class.getProtectionDomain()
+                .getCodeSource().getLocation().toURI()).getParentFile();
+            File audioFile = new File(jarDir, "audio/" + filename);
+            if (audioFile.exists()) return audioFile.getAbsolutePath();
+            // Also check audio/ relative to working directory
+            File relFile = new File("audio/" + filename);
+            if (relFile.exists()) return relFile.getAbsolutePath();
+        } catch (Exception ignored) {}
+        return filename; // fallback to resource name
     }
 
     /** Load any WAV files from ./bgm/ folder next to the JAR */
